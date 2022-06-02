@@ -1,42 +1,15 @@
 package com.ban.protrack.service;
 
 import com.ban.protrack.model.User;
-import com.ban.protrack.repository.UserRepository;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Service;
-import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
+import java.util.Collection;
 
-@Service
-public class UserService {
-
-    @Autowired
-    UserRepository userRepo;
-
-    public Iterable<User> findAll() {
-        return userRepo.findAll();
-    }
-
-    public Optional<User> findById(Integer id) {
-        return userRepo.findById(id);
-    }
-
-    public Optional<User> findByUsername(String username) {
-        return userRepo.findByUsername(username);
-    }
-
-    public User save(User user) {
-        return userRepo.save(user);
-    }
-
-    public void remove(Integer id) {
-        userRepo.deleteById(id);
-    }
-
-
-
-
+public interface UserService {
+    User create(User user);
+    Collection<User> list(int page, int limit);
+    User getById(Long id);
+    User getByUsername(String username);
+    User update(User user);
+    Boolean deleteById(Long id);
+    Boolean deleteByUsername(String username);
 }

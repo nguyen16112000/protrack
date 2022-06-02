@@ -1,55 +1,86 @@
 package com.ban.protrack.controller;
 
 import com.ban.protrack.model.User;
-import com.ban.protrack.service.UserService;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.ban.protrack.payload.response.BODY;
+import com.ban.protrack.service.implementation.UserServiceImpl;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Optional;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
-@Controller
-@RequestMapping("/api/user")
+import static java.time.LocalDateTime.now;
+import static org.springframework.http.HttpStatus.*;
+
+@RestController
+@RequestMapping("/user")
+@RequiredArgsConstructor
 public class UserController {
+    private final UserServiceImpl userService;
 
-    @Autowired
-    UserService userService;
+    @GetMapping(value = {"", "/"})
+    public ResponseEntity<BODY> getUsers() throws InterruptedException {
+        TimeUnit.SECONDS.sleep(3);
+        return ResponseEntity.ok(
+                BODY.builder()
+                        .timeStamp(now())
+                        .data(Map.of("users", userService.list(0, 30)))
+                        .message("Users retrieved")
+                        .status(OK)
+                        .build()
+        );
+    }
 
-    @GetMapping("/")
-    public ResponseEntity<Iterable<User>> getAllUser(){
-        return new ResponseEntity<>(userService.findAll(), HttpStatus.OK);
+    @PostMapping(value={"", "/"})
+    public ResponseEntity<BODY> saveUser(@RequestBody User user){
+        return ResponseEntity.ok(
+                BODY.builder()
+                        .timeStamp(now())
+                        .data(Map.of("user", userService.create(user)))
+                        .message("Users created")
+                        .status(CREATED)
+                        .build()
+        );
     }
 
     @GetMapping("/{username}")
-    public ResponseEntity<User> getUser(@PathVariable(name = "username") String username){
-        Optional<User> user = userService.findByUsername(username);
-        return user.map(user1 -> new ResponseEntity<>(user1, HttpStatus.OK))
-                .orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
-    }
-
-    @PostMapping("/")
-    public ResponseEntity<User> addUser(@RequestBody User user){
-        return new ResponseEntity<>(userService.save(user), HttpStatus.OK);
+    public ResponseEntity<BODY> getUser(@PathVariable("username") String username){
+        return ResponseEntity.ok(
+                BODY.builder()
+                        .timeStamp(now())
+                        .data(Map.of("user", userService.getByUsername(username)))
+                        .message("User retrieved")
+                        .status(CREATED)
+                        .build()
+        );
     }
 
     @PutMapping("/{username}")
-    public ResponseEntity<User> updateUser(@PathVariable(name = "username") String username, @RequestBody User user){
-        System.out.println(user);
-        Optional<User> updateUser = userService.findByUsername(username);
-        return updateUser.map(user1 -> {
-            user.setId(user1.getId());
-            return new ResponseEntity<>(userService.save(user), HttpStatus.OK);
-        }).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    public ResponseEntity<BODY> updateUser(@PathVariable("username") String username, @RequestBody User user){
+//        if (!Objects.equals(username, user.getUsername()))
+//            return ResponseEntity.badRequest().body("Either 'id' or 'name' must be set");
+        return ResponseEntity.ok(
+                BODY.builder()
+                        .timeStamp(now())
+                        .data(Map.of("user", userService.getByUsername(username)))
+                        .message("User retrieved")
+                        .status(CREATED)
+                        .build()
+        );
     }
 
     @DeleteMapping("/{username}")
-    public ResponseEntity<User> deleteUser(@PathVariable(name = "username") String username){
-        Optional<User> user = userService.findByUsername(username);
-        return user.map(user1 -> {
-            userService.remove(user.get().getId());
-            return new ResponseEntity<>(user1, HttpStatus.OK);
-        }).orElseGet(() -> new ResponseEntity<>(HttpStatus.NOT_FOUND));
+    public ResponseEntity<BODY> deleteUser(@PathVariable("username") String username){
+        return ResponseEntity.ok(
+                BODY.builder()
+                        .timeStamp(now())
+                        .data(Map.of("user", userService.deleteByUsername(username)))
+                        .message("User deleted")
+                        .status(CREATED)
+                        .build()
+        );
     }
 }
