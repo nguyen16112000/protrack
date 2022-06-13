@@ -1,6 +1,8 @@
 package com.ban.protrack.model;
 
 import com.ban.protrack.enumeration.Role;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonManagedReference;
 import lombok.*;
 
 
@@ -9,6 +11,7 @@ import javax.persistence.*;
 import java.util.Collection;
 
 import static javax.persistence.GenerationType.AUTO;
+import static javax.persistence.GenerationType.IDENTITY;
 
 @Entity
 @Data
@@ -16,7 +19,7 @@ import static javax.persistence.GenerationType.AUTO;
 @AllArgsConstructor
 public class User {
     @Id
-    @GeneratedValue(strategy = AUTO)
+    @GeneratedValue(strategy = IDENTITY)
     private Long id;
 
     @Column(unique = true, nullable = false)
@@ -36,5 +39,6 @@ public class User {
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL)
     @EqualsAndHashCode.Exclude
     @ToString.Exclude
+    @JsonManagedReference
     private Collection<JoinedUserProject> userProject;
 }
