@@ -3,6 +3,7 @@ package com.ban.protrack.service;
 import com.ban.protrack.model.Project;
 import com.ban.protrack.model.Work;
 
+import java.time.LocalDate;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -17,5 +18,6 @@ public interface ProjectService {
 
     List<Work> getWorksofProject(Long project_id);
 
-    Long addWorksToProject(Map<String, Object> workMap, Map<String, Object> workOrderMap);
+
+    Long addWorksToProject(String username, String project_name, LocalDate start_date, Map<String, Object> workMap, Map<String, Object> workOrderMap);
 }

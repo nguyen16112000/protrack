@@ -4,6 +4,8 @@ import com.ban.protrack.model.User;
 import com.ban.protrack.repository.UserRepository;
 import com.ban.protrack.service.UserService;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.PropertyValueException;
+import org.hibernate.exception.ConstraintViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -15,6 +17,8 @@ import org.springframework.stereotype.Service;
 import javax.transaction.Transactional;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Objects;
 
 import static java.lang.Boolean.TRUE;
 
@@ -67,6 +71,39 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         return userRepo.save(user);
     }
 
+    public void updatePassword(Map<String, String> request) {
+        if (request.containsKey("username")) {
+            User user = userRepo.findByUsername(request.get("username"));
+            if (user == null)
+                throw new PropertyValueException("Username or password error", "request", "");
+            if (request.containsKey("old_password") && request.containsKey("new_password")){
+                if (passwordEncoder.matches(request.get("old_password"), user.getPassword())) {
+                    user.setPassword(passwordEncoder.encode(request.get("new_password")));
+                    userRepo.save(user);
+                    return;
+                }
+                else
+                    throw new PropertyValueException("Username or password error", "request", "");
+            }
+            else if (request.containsKey("new_password")){
+                boolean auth = false, has_value = false;
+                if (request.containsKey("email"))
+                    auth = Objects.equals(user.getEmail(), request.get("email"));
+
+                if (request.containsKey("phone"))
+                    auth = auth && Objects.equals(user.getPhone(), request.get("phone"));
+
+                if (auth) {
+                    user.setPassword(passwordEncoder.encode(request.get("new_password")));
+                    return;
+                }
+                else
+                    throw new PropertyValueException("Username or password error", "request", "");
+            }
+        }
+        throw new PropertyValueException("Missing properties", "request", "username");
+    }
+
     @Override
     public Boolean deleteById(Long id) {
         userRepo.deleteById(id);
@@ -83,4 +120,11 @@ public class UserServiceImpl implements UserService, UserDetailsService {
         return null;
     }
 
+    public String register(String username, String password, String email, String phone) {
+        if (userRepo.findByUsername(username) != null){
+            throw new ConstraintViolationException("Username already existed", null, null);
+        }
+        userRepo.save(new User(username, passwordEncoder.encode(password), email, phone));
+        return "Register successfully";
+    }
 }

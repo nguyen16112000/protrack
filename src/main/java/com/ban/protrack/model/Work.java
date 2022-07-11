@@ -8,6 +8,7 @@ import javax.persistence.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 
 @Entity
@@ -61,7 +62,7 @@ public class Work {
 
     @ManyToOne(fetch= FetchType.LAZY)
     @JoinColumn(name="user_id")
-    @JsonBackReference
+//    @JsonBackReference
     private User user;
 
     @OneToMany(mappedBy = "work_before")
@@ -76,48 +77,67 @@ public class Work {
     @JsonManagedReference
     private Collection<WorkOrder> work_before;
 
-    public Work(String id, Long work_time){
+    public Work(String id, String name, Long work_time){
         this.id = id;
+        this.name = name;
         this.work_time = work_time;
     }
 
-    public Work(String id, LocalDate es, LocalDate ef, LocalDate ls, LocalDate lf, Long work_time){
+    public Work(String id, LocalDate es, LocalDate ef, LocalDate ls, LocalDate lf, Long work_time, String name){
         this.id = id;
         this.es_date = es;
         this.ef_date = ef;
         this.ls_date = ls;
         this.lf_date = lf;
         this.work_time = work_time;
+        this.name = name;
     }
 
     @JsonGetter("work_after")
     public Collection<String> getWorkAfter(){
         Collection<String> workafter = new ArrayList<>();
+        if (work_after == null)
+            return workafter;
         work_after.forEach(work -> {
             workafter.add(work.getWork_after().getId());
         });
         return workafter;
     }
 
+//    @JsonGetter("work_before")
+//    public Collection<String> getWorkBefore(){
+//        Collection<String> workbefore = new ArrayList<>();
+//        work_before.forEach(work -> {
+//            workbefore.add(work.getWork_before().getId());
+//        });
+//        return workbefore;
+//    }
     @JsonGetter("work_before")
-    public Collection<String> getWorkBefore(){
-        Collection<String> workbefore = new ArrayList<>();
+    public Map<String, String> getWorkBefore(){
+        Map<String, String> workbefore = new HashMap<>();
+        if (work_before == null)
+            return workbefore;
         work_before.forEach(work -> {
-            workbefore.add(work.getWork_before().getId());
+            workbefore.put(work.getWork_before().getId(), work.getWork_before().getName());
         });
         return workbefore;
     }
 
-    @Override
-    public String toString(){
-        return "Work{" +
-                "id=" + id +
-                ", t=" + work_time +
-                ", es=" + es_date +
-                ", ef=" + ef_date +
-                ", ls=" + ls_date +
-                ", lf=" + lf_date +
-                '}';
+    @JsonGetter("user")
+    public String getUser(){
+        if (user == null) return "";
+        return user.getUsername();
     }
 
+//    @Override
+//    public String toString(){
+//        return "Work{" +
+//                "id=" + id +
+//                ", t=" + work_time +
+//                ", es=" + es_date +
+//                ", ef=" + ef_date +
+//                ", ls=" + ls_date +
+//                ", lf=" + lf_date +
+//                '}';
+//    }
 }

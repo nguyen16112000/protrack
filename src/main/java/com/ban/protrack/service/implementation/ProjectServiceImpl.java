@@ -3,10 +3,10 @@ package com.ban.protrack.service.implementation;
 import com.ban.protrack.component.DummyWork;
 import com.ban.protrack.component.Graph;
 import com.ban.protrack.component.Pair;
-import com.ban.protrack.model.Project;
-import com.ban.protrack.model.Work;
-import com.ban.protrack.model.WorkOrder;
+import com.ban.protrack.model.*;
+import com.ban.protrack.repository.NotificationRepository;
 import com.ban.protrack.repository.ProjectRepository;
+import com.ban.protrack.repository.UserRepository;
 import com.ban.protrack.repository.WorkRepository;
 import com.ban.protrack.service.ProjectService;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +28,14 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectRepository projectRepo;
 
+    private final UserRepository userRepo;
+
     private final WorkRepository workRepo;
+
+    private final NotificationRepository notiRepo;
+
+//    sowwi
+    private final FilesStorageServiceImpl filesStorageService;
 
     @Override
     public Project create(Project project) {
@@ -56,10 +63,10 @@ public class ProjectServiceImpl implements ProjectService {
         return TRUE;
     }
 
-    public boolean isAllowed(Collection<SimpleGrantedAuthority> authorities, Long id){
-        return authorities.contains(new SimpleGrantedAuthority("GROUP_" + id + "_ADMIN"))
-                || authorities.contains(new SimpleGrantedAuthority("GROUP_" + id + "_USER"));
-    };
+//    public boolean isAllowed(Collection<SimpleGrantedAuthority> authorities, Long id){
+//        return authorities.contains(new SimpleGrantedAuthority("GROUP_" + id + "_ADMIN"))
+//                || authorities.contains(new SimpleGrantedAuthority("GROUP_" + id + "_USER"));
+//    };
 
     @Override
     public Work getWorkofProject(Long project_id, String work_id) {
@@ -75,16 +82,32 @@ public class ProjectServiceImpl implements ProjectService {
         return workRepo.getWorksByProject(project_id);
     }
 
+    public String getUserRole(String username, Long project_id){
+        return projectRepo.getUserRole(userRepo.findByUsername(username).getId(), project_id);
+    }
+
+    public boolean addUsertoProject(String username, Long project_id) {
+        Long user_id = userRepo.findByUsername(username).getId();
+        if (projectRepo.getUserRole(user_id, project_id) != null)
+            return false;
+
+        projectRepo.addUsertoProject(user_id, project_id, "ROLE_USER");
+
+        return true;
+    }
+
     @Override
-    public Long addWorksToProject(Map<String, Object> workMap, Map<String, Object> workOrderMap) {
-        Project project = create(new Project());
+    public Long addWorksToProject(String username, String project_name, LocalDate start_date, Map<String, Object> workMap, Map<String, Object> workOrderMap) {
+        Long user_id = userRepo.findByUsername(username).getId();
+        Project project = create(new Project(project_name));
         String project_id = String.valueOf(project.getId());
+        projectRepo.addUsertoProject(user_id, project.getId(), "ROLE_ADMIN");
         workMap.forEach((key, value) -> {
 //            works.add(new Work(id.toString() + "_" + key, value));
             if (value.getClass() == ArrayList.class){
                 ArrayList<String> work_value = (ArrayList<String>) value;
-                if (((ArrayList<?>) value).size() == 1){
-                    Work work = new Work(project_id + "_" + key,  Long.parseLong(work_value.get(0)));
+                if (((ArrayList<?>) value).size() > 0){
+                    Work work = new Work(project_id + "_" + key, work_value.get(0), Long.parseLong(work_value.get(1)));
                     work.setProject(project);
                     workRepo.save(work);
                 }
@@ -101,7 +124,11 @@ public class ProjectServiceImpl implements ProjectService {
         return project.getId();
     }
 
-    public void evaluateWorkTime(Long project_id){
+    public List<Project> getProjectsOfUser(String username) {
+        return projectRepo.getProjectsByUser(userRepo.findByUsername(username).getId());
+    }
+
+    public void evaluateWorkTime(Long project_id, LocalDate start_date){
         List<Work> works = workRepo.getWorksByProject(project_id);
 
         Set<String> check = new HashSet<>();
@@ -152,16 +179,83 @@ public class ProjectServiceImpl implements ProjectService {
             }
         }
         dummyWorks.remove("0");
-        LocalDate start_time = LocalDate.now();
         dummyWorks.forEach((id, dummyWork) -> {
-            LocalDate es = start_time.plusDays(dummyWork.getEs());
-            LocalDate ef = start_time.plusDays(dummyWork.getEf() - 1);
-            LocalDate ls = start_time.plusDays(dummyWork.getLs());
-            LocalDate lf = start_time.plusDays(dummyWork.getLf() - 1);
+            LocalDate es = start_date.plusDays(dummyWork.getEs());
+            LocalDate ef = start_date.plusDays(dummyWork.getEf() - 1);
+            LocalDate ls = start_date.plusDays(dummyWork.getLs());
+            LocalDate lf = start_date.plusDays(dummyWork.getLf() - 1);
             workRepo.updateAfterEvaluate(id, es, ef, ls, lf);
         });
 
     }
 
+    public LocalDate plusTimeWithoutWeekend(LocalDate start_date, int work_time){
+        int days = 0;
+        switch (start_date.getDayOfWeek().toString()) {
+            case "SATURDAY" -> days = 2;
+            case "SUNDAY" -> days = 1;
+        }
+        int work_days = (work_time / 5) * 7 + work_time % 5;
+        return start_date.plusDays(work_days + days - 1);
+    }
+
+    public LocalDate plusTimeWithWeekend(LocalDate start_date, int work_time){
+        return start_date.plusDays(work_time - 1);
+    }
+
+    public String getProofURL(Long project_id, String work_id, String username) {
+        Work work = workRepo.getWorkByProject(project_id, work_id);
+        Project project = work.getProject();
+        String user = work.getUser();
+        if (Objects.equals(project.getId(), project_id) && Objects.equals(username, user)) {
+            if (work.getProof() == null)
+                return "";
+            return work.getProof();
+        }
+        return null;
+    }
+
+    public String getProofURL(Long project_id, String work_id, Boolean is_admin) {
+        Work work = workRepo.getWorkByProject(project_id, work_id);
+        if (work.getProof() == null)
+            return "";
+        return work.getProof();
+    }
+
+    public void setProofURL(Long project_id, String work_id, String fileName, String worker) {
+        Work work = workRepo.getWorkByProject(project_id, work_id);
+        work.setProof(fileName);
+        workRepo.save(work);
+        User admin = userRepo.getById(getProjectAdmin(project_id));
+        User user = userRepo.findByUsername(worker);
+        notiRepo.save(new Notification(admin, worker + " had submitted their works for work: " + work.getName()));
+//        notiRepo.save(new Notification(admin, worker + " had submitted their works for work: " + work.getName(), "approval/" + project_id + "/" + work_id + "/" + user.getId(), 0));
+    }
+
+    public void approveWork(Long project_id, String work_id, Boolean accept) {
+        Work work = workRepo.getWorkByProject(project_id, work_id);
+        if (accept) {
+            work.setF_date(LocalDate.now());
+            work.setApproved(true);
+        }
+        else {
+            String file = work.getProof();
+            work.setProof(null);
+            User user = userRepo.findByUsername(work.getUser());
+            notiRepo.save(new Notification(user, "Project admin declined your submit for work: " + work.getName()));
+            try {
+                filesStorageService.delete(file);
+            }
+            catch (Exception ex) {
+                System.out.println("File not found");
+            }
+        }
+        workRepo.save(work);
+//        notificationRepo.save(new Notification(sender, username + " accepted your work."));
+    }
+
+    public Long getProjectAdmin(Long project_id) {
+        return projectRepo.getProjectAdmin(project_id);
+    }
 
 }

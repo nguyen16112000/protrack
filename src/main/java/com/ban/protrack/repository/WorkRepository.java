@@ -7,7 +7,6 @@ import org.springframework.data.jpa.repository.Query;
 
 import javax.transaction.Transactional;
 import java.time.LocalDate;
-import java.util.Collection;
 import java.util.List;
 
 public interface WorkRepository extends JpaRepository<Work, Long> {
@@ -34,8 +33,13 @@ public interface WorkRepository extends JpaRepository<Work, Long> {
     @Transactional
     void setWorker(String work_id, Long user_id);
 
+    @Query(value = "SELECT u.user_id FROM Work u WHERE u.id = ?1", nativeQuery = true)
+    Long getWorker(String id);
+
     @Query(value = "UPDATE Work SET es_date = ?2, ef_date = ?3, ls_date = ?4, lf_date = ?5 WHERE id = ?1", nativeQuery = true)
     @Modifying
     @Transactional
     void updateAfterEvaluate(String work_id, LocalDate es, LocalDate ef, LocalDate ls, LocalDate lf);
+
+
 }
